@@ -1,0 +1,162 @@
+---
+title: "CS_final_project"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(gridExtra)
+library(tidyr)
+library(knitr)
+library(GGally) # for ggpairs
+library(dplyr)
+library(MASS)
+library(car)
+library(sjPlot)
+library(sjmisc)
+library(sjlabelled)
+library(devtools)
+library(kableExtra)
+library(jtools)
+```
+
+```{r cars}
+# load data 
+library(foreign)
+#Predict if D or ND: look at LBDGLUSI - Fasting Glucose (mmol/L) > 7
+data_glucose <- read.xport("GLU_J.XPT")
+
+#Age -
+#Sleep Time - SLD012 - Sleep hours -6087 obs
+data_sleep <- read.xport("SLQ_J.XPT")
+#DR1IKCAL - Energy (kcal)
+#DR1ICARB - Carbohydrate (gm)
+#DR1ISUGR - Total sugars (gm)
+#DR1ITFAT - Total fat (gm)
+data_diet <- read.xport("DR1IFF_J.XPT")
+#Age -RIDAGEYR - Age in years at screening
+data_age <- read.xport("DEMO_J.XPT")
+#BPXSY1 - Systolic: Blood pres (1st rdg) mm Hg
+#BPXPULS - Pulse regular or irregular?
+#blood pressure 
+data_bp <- read.xport("BPX_J.XPT")
+```
+
+Glucose Pre Process
+```{r}
+# subsetting data to keep column and seqn - 3036 obsv
+gluc_sub <- data_glucose[c("SEQN", "LBDGLUSI")]
+#remove NA - now 2891 obs
+gluc_sub <- subset(gluc_sub, !is.na(LBDGLUSI))
+```
+
+```{r}
+#data_act$activity <- ifelse(data_act$PAD675 < 540, data_act$PAD675, NA)
+gluc_sub$new[gluc_sub$LBDGLUSI > 7] <- "1"
+gluc_sub$new[gluc_sub$LBDGLUSI <= 7] <- "0"
+table(gluc_sub$new)
+```
+Sleep Pre Process
+```{r}
+# subsetting data to keep column and seqn - 6161 obsv
+sleep_sub <- data_sleep[c("SEQN", "SLD012")]
+#remove NA - now 6161 obs
+sleep_sub <- subset(sleep_sub, !is.na(SLD012))
+```
+Age Pre Process
+```{r}
+# subsetting data to keep column and seqn - 9254 obsv
+age_sub <- data_age[c("SEQN", "RIDAGEYR")]
+#remove NA - now 9254 obs
+age_sub <- subset(age_sub, !is.na(RIDAGEYR))
+```
+
+Energy Pre Process
+```{r}
+# subsetting data to keep column and seqn - 111710 obsv
+energy_s <- data_diet[c("SEQN", "DR1IKCAL")]
+#remove NA - now 111710 obs
+energy_s <- subset(energy_s, !is.na(DR1IKCAL))
+energy_sub <- aggregate(DR1IKCAL ~ SEQN, data = energy_s, FUN = sum)
+```
+
+Carbohydrate Pre Process 
+```{r}
+# subsetting data to keep column and seqn - 111710 obsv
+carb_s <- data_diet[c("SEQN", "DR1ICARB")]
+#remove NA - now 111710 obs
+carb_s <- subset(carb_s, !is.na(DR1ICARB))
+carb_sub <- aggregate(DR1ICARB ~ SEQN, data = carb_s, FUN = sum)
+```
+
+Sugar Pre Process
+```{r}
+# subsetting data to keep column and seqn - 111710 obsv
+sug_s <- data_diet[c("SEQN", "DR1ISUGR")]
+#remove NA - now 111710 obs
+sug_s <- subset(sug_s, !is.na(DR1ISUGR))
+sug_sub <- aggregate(DR1ISUGR ~ SEQN, data = sug_s, FUN = sum)
+```
+
+Systolic Blood Pres
+```{r}
+sbp_sub <- data_bp[c("SEQN", "BPXSY1")]
+sbp_sub <- subset(sbp_sub, !is.na(BPXSY1))
+```
+
+BPXDI1 - Diastolic: Blood pres (1st rdg) mm Hg
+```{r}
+dbp_sub <- data_bp[c("SEQN", "BPXDI1")]
+dbp_sub <- subset(dbp_sub, !is.na(BPXDI1))
+```
+
+Pulse Regular or Irregular Pre Proc
+```{r}
+pulse_sub <- data_bp[c("SEQN", "BPXPULS")]
+pulse_sub <- subset(pulse_sub, !is.na(BPXPULS))
+pulse_sub$BPXPULS[pulse_sub$BPXPULS == 2] <- 0
+pulse_sub <- pulse_sub[pulse_sub$BPXPULS != ".",]
+```
+
+Merge 
+```{r}
+df1 <- merge(gluc_sub, age_sub, by='SEQN', all.x=TRUE)
+#2891 obs RIDAGEYR
+df1 <- subset(df1, !is.na(RIDAGEYR))
+df1 <- subset(df1, !is.na(LBDGLUSI))
+df2 <- merge(df1, sleep_sub, by='SEQN', all.x=TRUE)
+#df2 <- subset(df2, !is.na(RIDAGEYR))
+#df2 <- subset(df2, !is.na(LBDGLUSI))
+#2891 obs
+df3 <- merge(df2, energy_sub, by='SEQN', all.x=TRUE)
+#df3 <- subset(df3, !is.na(RIDAGEYR))
+#df3 <- subset(df3, !is.na(LBDGLUSI))
+#2891 obs
+df4 <- merge(df3, carb_sub, by='SEQN', all.x=TRUE)
+df5 <- merge(df4, sug_sub, by='SEQN', all.x=TRUE)
+df6 <- merge(df5, sbp_sub, by='SEQN', all.x=TRUE)
+df7 <- merge(df6, dbp_sub, by='SEQN', all.x=TRUE)
+df8 <- merge(df7, pulse_sub, by='SEQN', all.x=TRUE)
+```
+
+```{r}
+colnames(df8) <- c('SEQN', 'Glucose', 'Outcome', 'Age', 'Energy', 'Carb', 'Sugar', 'Sleep', 'Systolic', 'Diastolic', 'Pulse')
+#remove NAs
+df_final <- na.omit(df8)
+```
+
+
+```{r}
+gluc_sub[unique(gluc_sub$SEQN), ]
+age_sub[unique(age_sub$SEQN), ]
+sleep_sub[unique(sleep_sub$SEQN), ]
+energy_sub[unique(energy_sub$SEQN), ]
+carb_sub[unique(carb_sub$SEQN), ]
+sbp_sub[unique(dsbp_sub$SEQN), ]
+```
+
+```{r}
+write.csv(df_final, file = "NHANES_diabetes.csv", row.names = FALSE)
+```
+
