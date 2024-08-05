@@ -19,4 +19,4 @@ This project explores the development of a machine learning model to classify in
    - **Random Forest Classifier**: Selected as the final model due to its superior performance. It utilized ensemble learning to mitigate overfitting and improve accuracy.
 
 ## Read the full paper here: 
-[here] (https://drive.google.com/file/d/105S7rX-caUsqjegx0CjOXlA8QkWsKpxP/view)
+(https://drive.google.com/file/d/105S7rX-caUsqjegx0CjOXlA8QkWsKpxP/view)
